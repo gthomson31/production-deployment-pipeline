@@ -1,0 +1,40 @@
+version: 2.1
+
+
+jobs:
+  create_and_deploy_front_end:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: create_and_deploy_front_end
+          command: |
+          aws cloudformation deploy \
+          --template-file bucket.yml \
+          --stack-name "${CIRCLE_WORKFLOW_ID:0:7}" \ # ${CIRCLE_WORKFLOW_ID:0:7} takes the first 7 chars of the variable CIRCLE_CI_WORKFLOW_ID
+          --parameter-overrides PipelineID="${CIRCLE_WORKFLOW_ID:0:7}"
+          
+          
+
+  get_last_deployment_id:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: get_last_deployment_id
+          command: |
+          aws cloudformation \
+          list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
+          --no-paginate --output text > last_deployment_id.txt
+ 
+          
+      
+      
+
+workflows:
+  my_workflow:
+    jobs:
+      - create_and_deploy_front_end
+      - get_last_deployment_id
