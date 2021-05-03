@@ -1,70 +1,32 @@
 version: 2.1
-
-
 jobs:
   create_and_deploy_front_end:
     docker:
       - image: amazon/aws-cli
     steps:
       - checkout
-      - run:
-          name: create_and_deploy_front_end
-          command: |
-            export STACKNAME=development-${CIRCLE_WORKFLOW_ID:0:7}
-            echo $STACKNAME
+      - run: |
+          aws cloudformation deploy \
+            --template-file bucket.yml \
+            --stack-name "${CIRCLE_WORKFLOW_ID}" \
+            --parameter-overrides NAME="${CIRCLE_WORKFLOW_ID}"
+      - run: aws s3 sync . s3://"${CIRCLE_WORKFLOW_ID}" --delete
 
-            export PIPELINEID=development-${CIRCLE_WORKFLOW_ID:0:7}
-            echo $PIPELINEID
-            
-            aws cloudformation deploy \
-            --template-file bucket.yml \            
-            --stack-name $STACKNAME \
-            --parameter-overrides PipelineID=$PIPELINEID
-      
-
-  get_last_deployment_id:
+  promote_to_production:
     docker:
       - image: amazon/aws-cli
     steps:
       - checkout
-      - run:
-          name: get_last_deployment_id
-          command: |
-            aws cloudformation \
-            list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
-            --no-paginate --output text > last_deployment_id.txt
-      - save_cache: # Caches dependencies with a cache key
-          key: last_deployment_id_cache
-          paths:
-            - ~/last_deployment_id.txt
+      - run: |
+          aws cloudformation deploy \
+            --template-file cloudformation.yml \
+            --stack-name cloudfront \
+            --parameter-overrides PipelineID="${CIRCLE_WORKFLOW_ID}"
 
 
-  clean_up_old_front_end:
-    docker:
-      - image: amazon/aws-cli
-    steps:
-      - checkout
-      - run:
-          name: clean_up_old_front_end
-          command: |
-
-            aws cloudformation delete-stack --stack-name "${PreviousPipelineID}"
-              
-        
-
-              - persist_to_workspace: # Persist the specified paths (workspace/echo-output)
-      # into the workspace for use in downstream job. Must be an absolute path,
-      # or relative path from working_directory. This is a directory on the container which is
-      # taken to be the root directory of the workspace.
-          root: workspace
-            # Must be relative path from root
-          paths:
-            - echo-output
-
-workflows:
-  my_workflow:
-    jobs:
-      - create_and_deploy_front_end
-      - get_last_deployment_id:
-          requires:
-            - create_and_deploy_front_end
+  workflows:
+    default:
+      jobs:
+        - create_and_deploy_front_end
+        - promote_to_production
+            requires: [create_and_deploy_front_end]
