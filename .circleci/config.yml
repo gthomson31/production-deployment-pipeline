@@ -11,16 +11,10 @@ jobs:
           name: create_and_deploy_front_end
           command: |
             aws cloudformation deploy \
-            --template-file bucket.yml \
-<<<<<<< HEAD
+            --template-file bucket.yml \            
             --stack-name "development-${CIRCLE_WORKFLOW_ID:0:7}" \
             --parameter-overrides PipelineID="development-${CIRCLE_WORKFLOW_ID:0:7}"
-=======
-            --stack-name "${CIRCLE_WORKFLOW_ID:0:7}" \
-            --parameter-overrides PipelineID="${CIRCLE_WORKFLOW_ID:0:7}"
->>>>>>> 32b9e7dc448f4b243242c6c1ab99b047afc0f23a
-            
-          
+      
 
   get_last_deployment_id:
     docker:
@@ -33,8 +27,7 @@ jobs:
             aws cloudformation \
             list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
             --no-paginate --output text > last_deployment_id.txt
-<<<<<<< HEAD
-        - save_cache: # Caches dependencies with a cache key
+      - save_cache: # Caches dependencies with a cache key
           key: last_deployment_id_cache
           paths:
             - ~/last_deployment_id.txt
@@ -62,15 +55,10 @@ jobs:
           paths:
             - echo-output
 
-=======
- 
-           
->>>>>>> 32b9e7dc448f4b243242c6c1ab99b047afc0f23a
-
 workflows:
   my_workflow:
     jobs:
       - create_and_deploy_front_end
-      - get_last_deployment_id
-        requires:
-          create_and_deploy_front_end
+      - get_last_deployment_id:
+          requires:
+            - create_and_deploy_front_end
