@@ -10,10 +10,16 @@ jobs:
       - run:
           name: create_and_deploy_front_end
           command: |
+            export STACKNAME=development-${CIRCLE_WORKFLOW_ID:0:7}
+            echo $STACKNAME
+
+            export PIPELINEID=development-${CIRCLE_WORKFLOW_ID:0:7}
+            echo $PIPELINEID
+            
             aws cloudformation deploy \
             --template-file bucket.yml \            
-            --stack-name "development-${CIRCLE_WORKFLOW_ID:0:7}" \
-            --parameter-overrides PipelineID="development-${CIRCLE_WORKFLOW_ID:0:7}"
+            --stack-name $STACKNAME \
+            --parameter-overrides PipelineID=$PIPELINEID
       
 
   get_last_deployment_id:
