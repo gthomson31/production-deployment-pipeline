@@ -10,11 +10,11 @@ jobs:
       - run:
           name: create_and_deploy_front_end
           command: |
-          aws cloudformation deploy \
-          --template-file bucket.yml \
-          --stack-name "${CIRCLE_WORKFLOW_ID:0:7}" \ # ${CIRCLE_WORKFLOW_ID:0:7} takes the first 7 chars of the variable CIRCLE_CI_WORKFLOW_ID
-          --parameter-overrides PipelineID="${CIRCLE_WORKFLOW_ID:0:7}"
-          
+            aws cloudformation deploy \
+            --template-file bucket.yml \
+            --stack-name "development-${CIRCLE_WORKFLOW_ID:0:7}" \
+            --parameter-overrides PipelineID="development-${CIRCLE_WORKFLOW_ID:0:7}"
+            
           
 
   get_last_deployment_id:
@@ -25,16 +25,42 @@ jobs:
       - run:
           name: get_last_deployment_id
           command: |
-          aws cloudformation \
-          list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
-          --no-paginate --output text > last_deployment_id.txt
- 
-          
-      
-      
+            aws cloudformation \
+            list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
+            --no-paginate --output text > last_deployment_id.txt
+        - save_cache: # Caches dependencies with a cache key
+          key: last_deployment_id_cache
+          paths:
+            - ~/last_deployment_id.txt
+
+
+  clean_up_old_front_end:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: clean_up_old_front_end
+          command: |
+
+            aws cloudformation delete-stack --stack-name "${PreviousPipelineID}"
+              
+        
+
+              - persist_to_workspace: # Persist the specified paths (workspace/echo-output)
+      # into the workspace for use in downstream job. Must be an absolute path,
+      # or relative path from working_directory. This is a directory on the container which is
+      # taken to be the root directory of the workspace.
+          root: workspace
+            # Must be relative path from root
+          paths:
+            - echo-output
+
 
 workflows:
   my_workflow:
     jobs:
       - create_and_deploy_front_end
       - get_last_deployment_id
+        requires:
+          create_and_deploy_front_end
